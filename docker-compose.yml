@@ -1,0 +1,74 @@
+services:
+  pgpool:
+    image: bitnami/pgpool:latest
+    ports:
+      - 5432:5432
+    environment:
+      - PGPOOL_BACKEND_NODES=0:citus-master:5432,1:citus-worker-1:5432,2:citus-worker-2:5432
+      - PGPOOL_SR_CHECK_USER=${POSTGRES_USER}
+      - PGPOOL_SR_CHECK_PASSWORD=${POSTGRES_PASSWORD}
+      - PGPOOL_ADMIN_USERNAME=${PGPOOL_ADMIN_USER}
+      - PGPOOL_ADMIN_PASSWORD=${PGPOOL_ADMIN_PASSWORD}
+      - PGPOOL_POSTGRES_USERNAME=${POSTGRES_USER}
+      - PGPOOL_POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - pgpool_data:/bitnami/pgpool
+    depends_on:
+      - citus-master
+      - citus-worker-1
+      - citus-worker-2
+    networks:
+      - citus-network
+
+  citus-master:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: "-p 5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - WORKER_1_HOST=citus-worker-1
+      - WORKER_2_HOST=citus-worker-2
+    volumes:
+      - master_data:/var/lib/postgresql/data
+      - ./init-citus.sh:/docker-entrypoint-initdb.d/init-citus.sh
+    networks:
+      - citus-network
+
+  citus-worker-1:
+    image: citusdata/citus:alpine
+    command: "-p 5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - PGDATA=/var/lib/postgresql/data
+    volumes:
+      - worker1_data:/var/lib/postgresql/data
+    networks:
+      - citus-network
+
+  citus-worker-2:
+    image: citusdata/citus:alpine
+    command: "-p 5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - PGDATA=/var/lib/postgresql/data
+    volumes:
+      - worker2_data:/var/lib/postgresql/data
+    networks:
+      - citus-network
+
+volumes:
+  pgpool_data:
+  master_data:
+  worker1_data:
+  worker2_data:
+
+networks:
+  citus-network:
+    driver: bridge
