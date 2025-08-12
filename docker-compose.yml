@@ -34,6 +34,7 @@ services:
     volumes:
       - master_data:/var/lib/postgresql/data
       - ./init-citus.sh:/docker-entrypoint-initdb.d/init-citus.sh
+      - ./init-pgpass.sh:/docker-entrypoint-initdb.d/init-pgpass.sh
     networks:
       - citus-network
 
@@ -47,6 +48,7 @@ services:
       - PGDATA=/var/lib/postgresql/data
     volumes:
       - worker1_data:/var/lib/postgresql/data
+      - ./pg_hba_worker.conf:/docker-entrypoint-initdb.d/pg_hba_worker.conf
     networks:
       - citus-network
 
@@ -60,6 +62,7 @@ services:
       - PGDATA=/var/lib/postgresql/data
     volumes:
       - worker2_data:/var/lib/postgresql/data
+      - ./pg_hba_worker.conf:/docker-entrypoint-initdb.d/pg_hba_worker.conf
     networks:
       - citus-network
 
