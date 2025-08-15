@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.1.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.2.0/schema.json",
   "assist": {
     "actions": {
       "source": {
@@ -57,12 +57,12 @@
   "files": {
     "includes": [
       "**",
-      "!**/dist/**",
+      "!**/dist",
       "!**/*.cjs",
       "!**/*.mjs",
       "!**/*.d.ts",
-      "!**/node_modules/**",
-      "!**/.yarn/**"
+      "!**/node_modules",
+      "!**/.yarn"
     ]
   },
   "javascript": {
