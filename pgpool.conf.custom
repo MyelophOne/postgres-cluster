@@ -1,6 +1,4 @@
-load_balance_mode = on
-master_slave_mode = on
-master_slave_sub_mode = 'stream'
+load_balance_mode = off
 
 database_redirect_preference_list = 'postgres:0,db:0'
 app_name_redirect_preference_list = 'psql:0'
