@@ -1,29 +1,46 @@
+x-common: &image-name myelophone-citus:latest
+
 services:
   pgpool:
     image: bitnami/pgpool:latest
     ports:
       - 5432:5432
     environment:
-      - PGPOOL_BACKEND_NODES=0:citus-master:5432,1:citus-worker-1:5432,2:citus-worker-2:5432
+      - PGPOOL_BACKEND_NODES=0:citus-master:5432,1:citus-worker-1:5432,2:citus-worker-2:5432,3:citus-standby:5432
       - PGPOOL_SR_CHECK_USER=${POSTGRES_USER}
       - PGPOOL_SR_CHECK_PASSWORD=${POSTGRES_PASSWORD}
       - PGPOOL_ADMIN_USERNAME=${PGPOOL_ADMIN_USER}
       - PGPOOL_ADMIN_PASSWORD=${PGPOOL_ADMIN_PASSWORD}
       - PGPOOL_POSTGRES_USERNAME=${POSTGRES_USER}
       - PGPOOL_POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - PGPOOL_CONF_FILE=/bitnami/pgpool/conf/pgpool.conf.custom
+      - PGPOOL_FAILOVER_COMMAND=/opt/bitnami/pgpool/failover.sh
+      # ID of standby-node, take it from PGPOOL_BACKEND_NODES (currently - 3:citus-standby:5432)
+      - NEW_MASTER_NODE_ID=3
+      - PGPOOL_PCP_PORT=9898
+      - PGPOOL_PCP_USER=${PGPOOL_ADMIN_USER}
+      - PGPOOL_PCP_PASSWORD=${PGPOOL_ADMIN_PASSWORD}
     volumes:
       - pgpool_data:/bitnami/pgpool
-    depends_on:
-      - citus-master
-      - citus-worker-1
-      - citus-worker-2
+      - ./pgpool.conf.custom:/bitnami/pgpool/conf/pgpool.conf.custom
+      - ./failover.sh:/opt/bitnami/pgpool/failover.sh
     networks:
       - citus-network
+    depends_on:
+      citus-master:
+        condition: service_healthy
+      citus-worker-1:
+        condition: service_healthy
+      citus-worker-2:
+        condition: service_healthy
+      citus-standby:
+        condition: service_healthy
 
   citus-master:
     build:
       context: .
       dockerfile: Dockerfile
+    image: *image-name
     command: ["-p", "5432", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
@@ -31,45 +48,96 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - WORKER_1_HOST=citus-worker-1
       - WORKER_2_HOST=citus-worker-2
+      - ROLE=master
     volumes:
       - master_data:/var/lib/postgresql/data
-      - ./init-citus.sh:/docker-entrypoint-initdb.d/init-citus.sh
-      - ./init-pgpass.sh:/docker-entrypoint-initdb.d/init-pgpass.sh
       - ./postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./pg_hba_master.sh:/docker-entrypoint-initdb.d/pg_hba_master.sh
     networks:
       - citus-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      citus-worker-1:
+        condition: service_healthy
+      citus-worker-2:
+        condition: service_healthy
+
+  citus-standby:
+    image: *image-name
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - PGDATA=/var/lib/postgresql/data
+      - ROLE=standby
+      - MASTER_HOST=citus-master
+      - REPLICATION_USER=${POSTGRES_USER}
+      - REPLICATION_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - standby_data:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./standby-init.sh:/docker-entrypoint-initdb.d/standby-init.sh
+    networks:
+      - citus-network
+    depends_on:
+      citus-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   citus-worker-1:
-    image: citusdata/citus:alpine
-    command: "-p 5432"
+    image: *image-name
+    command: ["-p", "5432", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
       - PGDATA=/var/lib/postgresql/data
+      - ROLE=worker
     volumes:
       - worker1_data:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
       - ./pg_hba_worker.conf:/docker-entrypoint-initdb.d/pg_hba_worker.conf
     networks:
       - citus-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   citus-worker-2:
-    image: citusdata/citus:alpine
-    command: "-p 5432"
+    image: *image-name
+    command: ["-p", "5432", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
       - PGDATA=/var/lib/postgresql/data
+      - ROLE=worker
     volumes:
       - worker2_data:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
       - ./pg_hba_worker.conf:/docker-entrypoint-initdb.d/pg_hba_worker.conf
     networks:
       - citus-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pgpool_data:
   master_data:
+  standby_data:
   worker1_data:
   worker2_data:
 

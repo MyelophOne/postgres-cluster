@@ -1,10 +1,29 @@
-#!/bin/bash
+#!/bin/sh
+
 set -e
 
 PGPASSFILE="/var/lib/postgresql/.pgpass"
 
-echo "citus-worker-1:5432:${POSTGRES_DB}:${POSTGRES_USER}:${POSTGRES_PASSWORD}" > "$PGPASSFILE"
-echo "citus-worker-2:5432:${POSTGRES_DB}:${POSTGRES_USER}:${POSTGRES_PASSWORD}" >> "$PGPASSFILE"
+if [ "$ROLE" = "master" ]; then
+	echo "Configuring Citus master..."
 
-chown postgres:postgres "$PGPASSFILE"
-chmod 600 "$PGPASSFILE"
+	cat > "$PGPASSFILE" <<EOF
+citus-worker-1:5432:${POSTGRES_DB}:${POSTGRES_USER}:${POSTGRES_PASSWORD}
+citus-worker-2:5432:${POSTGRES_DB}:${POSTGRES_USER}:${POSTGRES_PASSWORD}
+citus-standby:5432:${POSTGRES_DB}:${POSTGRES_USER}:${POSTGRES_PASSWORD}
+EOF
+	chown postgres:postgres "$PGPASSFILE"
+	chmod 600 "$PGPASSFILE"
+
+	until pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do
+		echo "Waiting for Postgres..."
+		sleep 2
+	done
+
+	psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT citus_set_coordinator_host('citus-master');" || true
+
+	psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT master_add_node('$WORKER_1_HOST', 5432);" || true
+	psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT master_add_node('$WORKER_2_HOST', 5432);" || true
+
+	echo "Citus Master configured."
+fi
