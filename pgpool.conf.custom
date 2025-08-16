@@ -5,8 +5,8 @@ master_slave_sub_mode = 'stream'
 
 statement_level_load_balance = off
 
-database_redirect_preference_list = 'postgres:0,db:0'
-app_name_redirect_preference_list = 'psql:0'
+database_redirect_preference_list = '*:0'
+app_name_redirect_preference_list = '*:0'
 
 black_function_list = '
   citus_*,
@@ -14,6 +14,7 @@ black_function_list = '
   citus_remove_node,
   citus_update_node,
   citus_set_coordinator_host,
+  create_distributed_table,
   master_add_node,
   master_remove_node,
   master_update_node,
