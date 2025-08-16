@@ -1,25 +1,6 @@
-# add here new services, order is very important
-
-backend_hostname0 = 'citus-master'
-backend_port0 = 5432
-backend_flag0 = 'ALLOW_TO_FAILOVER'
-
-backend_hostname1 = 'citus-worker-1'
-backend_port1 = 5432
-backend_flag1 = 'ALLOW_TO_FAILOVER'
-
-backend_hostname2 = 'citus-worker-2'
-backend_port2 = 5432
-backend_flag2 = 'ALLOW_TO_FAILOVER'
-
-backend_hostname3 = 'citus-standby'
-backend_port3 = 5432
-backend_flag3 = 'ALLOW_TO_FAILOVER'
+master_slave_mode = off
 
 load_balance_mode = on
-
-master_slave_mode = on
-master_slave_sub_mode = 'stream'
 
 statement_level_load_balance = off
 
@@ -72,5 +53,3 @@ black_function_list = '
   pg_ls_archive_statusdir,
   pg_ls_tmpdir
 '
-
-failover_command = '/opt/bitnami/pgpool/failover.sh %d %h %p'

@@ -10,7 +10,6 @@ if [ "$ROLE" = "master" ]; then
 	cat > "$PGPASSFILE" <<EOF
 citus-worker-1:5432:${POSTGRES_DB}:${POSTGRES_USER}:${POSTGRES_PASSWORD}
 citus-worker-2:5432:${POSTGRES_DB}:${POSTGRES_USER}:${POSTGRES_PASSWORD}
-citus-standby:5432:${POSTGRES_DB}:${POSTGRES_USER}:${POSTGRES_PASSWORD}
 EOF
 	chown postgres:postgres "$PGPASSFILE"
 	chmod 600 "$PGPASSFILE"
