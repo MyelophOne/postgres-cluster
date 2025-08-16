@@ -3,10 +3,55 @@ load_balance_mode = on
 master_slave_mode = on
 master_slave_sub_mode = 'stream'
 
+statement_level_load_balance = off
+
 database_redirect_preference_list = 'postgres:0,db:0'
+app_name_redirect_preference_list = 'psql:0'
 
-app_name_redirect_preference_list = 'psql:0,citus-master:0'
-
-black_function_list = 'create_distributed_table, master_create_empty_shard, master_append_table_to_shard, master_copy_shard_placement, master_move_shard_placement, master_merge_shards'
+black_function_list = '
+  citus_*,
+  citus_add_node,
+  citus_remove_node,
+  citus_update_node,
+  citus_set_coordinator_host,
+  master_add_node,
+  master_remove_node,
+  master_update_node,
+  master_create_distributed_function,
+  create_distributed_function,
+  master_create_empty_shard,
+  master_append_table_to_shard,
+  master_copy_shard_placement,
+  master_move_shard_placement,
+  master_merge_shards,
+  pg_catalog.nextval,
+  pg_catalog.setval,
+  nextval,
+  setval,
+  currval,
+  lastval,
+  uuid_generate_v1,
+  uuid_generate_v1mc,
+  uuid_generate_v4,
+  pg_advisory_lock,
+  pg_advisory_xact_lock,
+  pg_try_advisory_lock,
+  pg_try_advisory_xact_lock,
+  pg_advisory_unlock,
+  pg_advisory_unlock_all,
+  pg_create_restore_point,
+  pg_switch_wal,
+  pg_rotate_logfile,
+  pg_reload_conf,
+  pg_start_backup,
+  pg_stop_backup,
+  pg_stat_file,
+  pg_read_file,
+  pg_logdir_ls,
+  pg_ls_dir,
+  pg_ls_waldir,
+  pg_ls_archive_statusdir,
+  pg_ls_tmpdir
+'
 
 failover_command = '/opt/bitnami/pgpool/failover.sh %d %h %p'
