@@ -4,95 +4,155 @@ services:
   pgpool:
     image: bitnami/pgpool:latest
     ports:
-      - 5432:5432
+      - "5432:5432"
     environment:
-      - PGPOOL_BACKEND_NODES=0:citus-master:5432
-      - PGPOOL_SR_CHECK_USER=${POSTGRES_USER}
-      - PGPOOL_SR_CHECK_PASSWORD=${POSTGRES_PASSWORD}
-      - PGPOOL_ADMIN_USERNAME=${PGPOOL_ADMIN_USER}
-      - PGPOOL_ADMIN_PASSWORD=${PGPOOL_ADMIN_PASSWORD}
+      - PGPOOL_BACKEND_NODES=0:coordinator:5432
       - PGPOOL_POSTGRES_USERNAME=${POSTGRES_USER}
       - PGPOOL_POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - PGPOOL_CONF_FILE=/bitnami/pgpool/conf/pgpool.conf.custom
-    volumes:
-      - pgpool_data:/bitnami/pgpool
-      - ./pgpool.conf.custom:/bitnami/pgpool/conf/pgpool.conf.custom
-    networks:
-      - citus-network
+      - PGPOOL_SR_CHECK_USER=${POSTGRES_USER}
+      - PGPOOL_SR_CHECK_PASSWORD=${POSTGRES_PASSWORD}
+      - PGPOOL_ADMIN_USERNAME=${PGPOOL_ADMIN_USERNAME}
+      - PGPOOL_ADMIN_PASSWORD=${PGPOOL_ADMIN_PASSWORD}
+      - PGPOOL_ENABLE_LOAD_BALANCING=yes
+      - PGPOOL_ENABLE_POOL_HBA=yes
+      - PGPOOL_ENABLE_SR_CHECK=no
+      - PGPOOL_CHILD_LIFE_TIME=300
+      - PGPOOL_ENABLE_LDAP=no
     depends_on:
-      citus-master:
+      coordinator:
         condition: service_healthy
-      citus-worker-1:
-        condition: service_healthy
-      citus-worker-2:
-        condition: service_healthy
+    networks:
+      - citus-net
 
-  citus-master:
+  coordinator:
     build:
       context: .
       dockerfile: Dockerfile
     image: *image-name
-    command: ["-p", "5432", "-c", "config_file=/etc/postgresql/postgresql.conf"]
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - WORKER_1_HOST=citus-worker-1
-      - WORKER_2_HOST=citus-worker-2
-      - ROLE=master
+    container_name: coordinator
+    command:
+      [
+        "-p",
+        "5432",
+        "-c",
+        "config_file=/etc/postgresql/postgresql.conf",
+        "-c",
+        "hba_file=/etc/postgresql/pg_hba.conf",
+      ]
     volumes:
+      - ./initdb.d:/docker-entrypoint-initdb.d
       - master_data:/var/lib/postgresql/data
-      - ./postgresql.conf:/etc/postgresql/postgresql.conf
-      - ./pg_hba_master.sh:/docker-entrypoint-initdb.d/pg_hba_master.sh
-    networks:
-      - citus-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - ./config/postgresql.conf:/etc/postgresql/postgresql.conf
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - ROLE=master
+      - PGPASSWORD=${POSTGRES_PASSWORD}
     depends_on:
-      citus-worker-1:
+      worker1:
         condition: service_healthy
-      citus-worker-2:
+      worker2:
         condition: service_healthy
-
-  citus-worker-1:
-    image: *image-name
-    command: ["-p", "5432", "-c", "config_file=/etc/postgresql/postgresql.conf"]
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - PGDATA=/var/lib/postgresql/data
-      - ROLE=worker
-    volumes:
-      - worker1_data:/var/lib/postgresql/data
-      - ./postgresql.conf:/etc/postgresql/postgresql.conf
-      - ./pg_hba_worker.conf:/docker-entrypoint-initdb.d/pg_hba_worker.conf
     networks:
-      - citus-network
+      - citus-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  citus-worker-2:
+  worker1:
     image: *image-name
-    command: ["-p", "5432", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    container_name: worker1
+    command:
+      [
+        "-p",
+        "5432",
+        "-c",
+        "config_file=/etc/postgresql/postgresql.conf",
+        "-c",
+        "hba_file=/etc/postgresql/pg_hba.conf",
+      ]
+    volumes:
+      - ./initdb.d-common:/docker-entrypoint-initdb.d
+      - worker1_data:/var/lib/postgresql/data
+      - ./config/postgresql.conf:/etc/postgresql/postgresql.conf
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
-      - PGDATA=/var/lib/postgresql/data
+      - PGDATA=/var/lib/postgresql/data/pgdata
       - ROLE=worker
-    volumes:
-      - worker2_data:/var/lib/postgresql/data
-      - ./postgresql.conf:/etc/postgresql/postgresql.conf
-      - ./pg_hba_worker.conf:/docker-entrypoint-initdb.d/pg_hba_worker.conf
+      - PGPASSWORD=${POSTGRES_PASSWORD}
     networks:
-      - citus-network
+      - citus-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  worker2:
+    image: *image-name
+    container_name: worker2
+    command:
+      [
+        "-p",
+        "5432",
+        "-c",
+        "config_file=/etc/postgresql/postgresql.conf",
+        "-c",
+        "hba_file=/etc/postgresql/pg_hba.conf",
+      ]
+    volumes:
+      - ./initdb.d-common:/docker-entrypoint-initdb.d
+      - worker2_data:/var/lib/postgresql/data
+      - ./config/postgresql.conf:/etc/postgresql/postgresql.conf
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - ROLE=worker
+      - PGPASSWORD=${POSTGRES_PASSWORD}
+    networks:
+      - citus-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backup:
+    image: *image-name
+    depends_on:
+      coordinator:
+        condition: service_healthy
+      worker1:
+        condition: service_healthy
+      worker2:
+        condition: service_healthy
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - RESTORE_DB=${POSTGRES_DB}
+      - COORDINATOR_HOST=coordinator
+      - WORKERS="worker1 worker2"
+      - BACKUP_INTERVAL_MIN=3 # 24 hours = 1440 minutes
+      - ROLE=backup
+      - PGPASSWORD=${POSTGRES_PASSWORD}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - RESTORE_CONFIRM_PASS={$RESTORE_CONFIRM_PASS}
+      - SERVER_ID={SERVER_ID}
+    volumes:
+      - ./backups:/backups
+    entrypoint: ["sh", "/usr/local/bin/backup_runner.sh"]
+    networks:
+      - citus-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -100,11 +160,10 @@ services:
       retries: 5
 
 volumes:
-  pgpool_data:
   master_data:
   worker1_data:
   worker2_data:
 
 networks:
-  citus-network:
+  citus-net:
     driver: bridge
