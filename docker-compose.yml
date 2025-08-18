@@ -23,6 +23,12 @@ services:
         condition: service_healthy
     networks:
       - citus-net
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 300s
 
   coordinator:
     build:
@@ -62,6 +68,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 300s
 
   worker1:
     image: *image-name
@@ -76,7 +88,7 @@ services:
         "hba_file=/etc/postgresql/pg_hba.conf",
       ]
     volumes:
-      - ./initdb.d-common:/docker-entrypoint-initdb.d
+      - ./initdb.d:/docker-entrypoint-initdb.d
       - worker1_data:/var/lib/postgresql/data
       - ./config/postgresql.conf:/etc/postgresql/postgresql.conf
     environment:
@@ -93,6 +105,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 300s
 
   worker2:
     image: *image-name
@@ -107,7 +125,7 @@ services:
         "hba_file=/etc/postgresql/pg_hba.conf",
       ]
     volumes:
-      - ./initdb.d-common:/docker-entrypoint-initdb.d
+      - ./initdb.d:/docker-entrypoint-initdb.d
       - worker2_data:/var/lib/postgresql/data
       - ./config/postgresql.conf:/etc/postgresql/postgresql.conf
     environment:
@@ -124,6 +142,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 300s
 
   backup:
     image: *image-name
@@ -158,6 +182,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 300s
 
 volumes:
   master_data:
