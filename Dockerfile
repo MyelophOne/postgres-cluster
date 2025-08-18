@@ -20,3 +20,7 @@ RUN dos2unix /usr/local/bin/backup_restore.sh \
 COPY scripts/register_worker.sh /usr/local/bin/register_worker.sh
 RUN dos2unix /usr/local/bin/register_worker.sh \
 	&& chmod +x /usr/local/bin/register_worker.sh
+
+COPY scripts/init_workers.sh /docker-entrypoint-initdb.d/init_workers.sh
+RUN dos2unix /docker-entrypoint-initdb.d/init_workers.sh \
+	&& chmod +x /docker-entrypoint-initdb.d/init_workers.sh
