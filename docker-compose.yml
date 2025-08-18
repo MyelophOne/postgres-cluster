@@ -141,7 +141,7 @@ services:
       - RESTORE_DB=${POSTGRES_DB}
       - COORDINATOR_HOST=coordinator
       - WORKERS="worker1 worker2"
-      - BACKUP_INTERVAL_MIN=3 # 24 hours = 1440 minutes
+      - BACKUP_INTERVAL_MIN=1440 # 24 hours = 1440 minutes
       - ROLE=backup
       - PGPASSWORD=${POSTGRES_PASSWORD}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
